@@ -37,6 +37,17 @@ impl Client {
         Self { rpc_addr }
     }
 
+    async fn query_retry<M: methods::RpcMethod, F, T>(
+        &self,
+        f: F,
+    ) -> MethodCallResult<M::Response, M::Error>
+    where
+        F: Fn() -> T,
+        T: core::future::Future<Output = MethodCallResult<M::Response, M::Error>>,
+    {
+        retry(|| async { f().await }).await
+    }
+
     pub(crate) async fn query_broadcast_tx(
         &self,
         method: &methods::broadcast_tx_commit::RpcBroadcastTxCommitRequest,
@@ -44,51 +55,57 @@ impl Client {
         FinalExecutionOutcomeView,
         near_jsonrpc_primitives::types::transactions::RpcTransactionError,
     > {
-        let result = self.query(method).await;
-        match &result {
-            Ok(response) => {
-                if tracing::level_enabled!(tracing::Level::DEBUG) {
-                    tracing::debug!(
-                        target: "workspaces",
-                        "Calling RPC method {:?} succeeded with {:?}",
-                        method,
-                        response
-                    );
-                } else {
-                    tracing::info!(
-                        target: "workspaces",
-                        "Submitting transaction with actions {:?} succeeded with status {:?}",
-                        method.signed_transaction.transaction.actions,
-                        response.status
-                    );
+        self.query_retry::<methods::broadcast_tx_commit::RpcBroadcastTxCommitRequest, _, _>(|| async {
+            let result = JsonRpcClient::connect(&self.rpc_addr).call(method).await;
+            match &result {
+                Ok(response) => {
+                    if tracing::level_enabled!(tracing::Level::DEBUG) {
+                        tracing::debug!(
+                            target: "workspaces",
+                            "Calling RPC method {:?} succeeded with {:?}",
+                            method,
+                            response
+                        );
+                    } else {
+                        tracing::info!(
+                            target: "workspaces",
+                            "Submitting transaction with actions {:?} succeeded with status {:?}",
+                            method.signed_transaction.transaction.actions,
+                            response.status
+                        );
+                    }
                 }
-            }
-            Err(error) => {
-                if tracing::level_enabled!(tracing::Level::DEBUG) {
-                    tracing::error!(
-                        target: "workspaces",
-                        "Calling RPC method {:?} resulted in error {:?}",
-                        method,
-                        error
-                    );
-                } else {
-                    tracing::error!(
-                        target: "workspaces",
-                        "Submitting transaction with actions {:?} resulted in error {:?}",
-                        method.signed_transaction.transaction.actions,
-                        error
-                    );
+                Err(error) => {
+                    if tracing::level_enabled!(tracing::Level::DEBUG) {
+                        tracing::error!(
+                            target: "workspaces",
+                            "Calling RPC method {:?} resulted in error {:?}",
+                            method,
+                            error
+                        );
+                    } else {
+                        tracing::error!(
+                            target: "workspaces",
+                            "Submitting transaction with actions {:?} resulted in error {:?}",
+                            method.signed_transaction.transaction.actions,
+                            error
+                        );
+                    }
                 }
-            }
-        };
-        result
+            };
+            result
+        })
+        .await
     }
 
     pub(crate) async fn query<M: methods::RpcMethod>(
         &self,
         method: &M,
     ) -> MethodCallResult<M::Response, M::Error> {
-        retry(|| async { JsonRpcClient::connect(&self.rpc_addr).call(method).await }).await
+        self.query_retry::<M, _, _>(|| async {
+            JsonRpcClient::connect(&self.rpc_addr).call(method).await
+        })
+        .await
     }
 
     async fn send_tx_and_retry(
