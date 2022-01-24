@@ -16,7 +16,6 @@ use near_primitives::types::{Balance, BlockId, Finality, Gas, StoreKey};
 use near_primitives::views::{
     AccessKeyView, AccountView, ContractCodeView, FinalExecutionOutcomeView, QueryRequest,
 };
-use tracing::{debug, error, info};
 
 use crate::network::ViewResultDetails;
 use crate::rpc::tool;
@@ -43,14 +42,21 @@ impl Client {
         method: &M,
     ) -> MethodCallResult<M::Response, M::Error> {
         retry(|| async {
-            debug!(target: "workspaces", "Calling method '{}'...", method.method_name());
             let result = JsonRpcClient::connect(&self.rpc_addr).call(method).await;
             match &result {
                 Ok(response) => {
-                    info!(target: "workspaces", "Method '{}' resulted in response '{:?}'", method.method_name(), response);
+                    if tracing::level_enabled!(tracing::Level::DEBUG) {
+                        tracing::debug!(target: "workspaces", "Querying method {:?} succeeded with {:?}", method, response);
+                    } else {
+                        tracing::info!(target: "workspaces", "Querying method '{}' succeeded with {:?}", method.method_name(), response);
+                    };
                 }
                 Err(error) => {
-                    error!(target: "workspaces", "Method '{}' resulted in error '{:?}'", method.method_name(), error);
+                    if tracing::level_enabled!(tracing::Level::DEBUG) {
+                        tracing::error!(target: "workspaces", "Querying method {:?} resulted in error {:?}", method, error);
+                    } else {
+                        tracing::error!(target: "workspaces", "Querying method '{}' resulted in error {:?}", method.method_name(), error);
+                    };
                 }
             }
             result
