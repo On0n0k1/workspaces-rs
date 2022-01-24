@@ -10,7 +10,7 @@ Library for automating workflows and testing NEAR smart contracts.
 
 [dependencies]
 async-trait = "0.1"
-anyhow = "1.0"
+anyhow = "1.0.53"
 base64 = "0.13"
 borsh = "0.9"
 chrono = "0.4.19"
@@ -26,11 +26,11 @@ tokio-retry = "0.3"
 tracing = "0.1"
 url = { version = "2.2.2", features = ["serde"] }
 
-near-account-id = "0.5"
-near-crypto = "0.5"
-near-primitives = "0.5"
-near-jsonrpc-primitives = "0.5"
-near-jsonrpc-client = { version = "0.1", features = ["sandbox"] }
+near-account-id = { git = "https://github.com/near/nearcore", branch = "daniyar/jsonrpc-primitives-debug" }
+near-crypto = { git = "https://github.com/near/nearcore", branch = "daniyar/jsonrpc-primitives-debug" }
+near-primitives = { git = "https://github.com/near/nearcore", branch = "daniyar/jsonrpc-primitives-debug" }
+near-jsonrpc-primitives = { git = "https://github.com/near/nearcore", branch = "daniyar/jsonrpc-primitives-debug" }
+near-jsonrpc-client = { git = "https://github.com/near/near-jsonrpc-client-rs", branch = "daniyar/jsonrpc-client-debug", features = ["sandbox"] }
 near-sandbox-utils = "0.1"
 
 [build-dependencies]

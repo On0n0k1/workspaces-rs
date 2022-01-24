@@ -16,6 +16,7 @@ use near_primitives::types::{Balance, BlockId, Finality, Gas, StoreKey};
 use near_primitives::views::{
     AccessKeyView, AccountView, ContractCodeView, FinalExecutionOutcomeView, QueryRequest,
 };
+use tracing::{debug, error, info};
 
 use crate::network::ViewResultDetails;
 use crate::rpc::tool;
@@ -41,7 +42,20 @@ impl Client {
         &self,
         method: &M,
     ) -> MethodCallResult<M::Response, M::Error> {
-        retry(|| async { JsonRpcClient::connect(&self.rpc_addr).call(method).await }).await
+        retry(|| async {
+            debug!(target: "workspaces", "Calling method '{}'...", method.method_name());
+            let result = JsonRpcClient::connect(&self.rpc_addr).call(method).await;
+            match &result {
+                Ok(response) => {
+                    info!(target: "workspaces", "Method '{}' resulted in response '{:?}'", method.method_name(), response);
+                }
+                Err(error) => {
+                    error!(target: "workspaces", "Method '{}' resulted in error '{:?}'", method.method_name(), error);
+                }
+            }
+            result
+        })
+        .await
     }
 
     async fn send_tx_and_retry(
