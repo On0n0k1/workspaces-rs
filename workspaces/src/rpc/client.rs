@@ -103,7 +103,14 @@ impl Client {
         method: &M,
     ) -> MethodCallResult<M::Response, M::Error> {
         self.query_retry::<M, _, _>(|| async {
-            JsonRpcClient::connect(&self.rpc_addr).call(method).await
+            let result = JsonRpcClient::connect(&self.rpc_addr).call(method).await;
+            tracing::debug!(
+                target: "workspaces",
+                "Querying RPC with {:?} resulted in {:?}",
+                method,
+                result
+            );
+            result
         })
         .await
     }
