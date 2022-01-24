@@ -37,31 +37,58 @@ impl Client {
         Self { rpc_addr }
     }
 
+    pub(crate) async fn query_broadcast_tx(
+        &self,
+        method: &methods::broadcast_tx_commit::RpcBroadcastTxCommitRequest,
+    ) -> MethodCallResult<
+        FinalExecutionOutcomeView,
+        near_jsonrpc_primitives::types::transactions::RpcTransactionError,
+    > {
+        let result = self.query(method).await;
+        match &result {
+            Ok(response) => {
+                if tracing::level_enabled!(tracing::Level::DEBUG) {
+                    tracing::debug!(
+                        target: "workspaces",
+                        "Calling RPC method {:?} succeeded with {:?}",
+                        method,
+                        response
+                    );
+                } else {
+                    tracing::info!(
+                        target: "workspaces",
+                        "Submitting transaction with actions {:?} succeeded with status {:?}",
+                        method.signed_transaction.transaction.actions,
+                        response.status
+                    );
+                }
+            }
+            Err(error) => {
+                if tracing::level_enabled!(tracing::Level::DEBUG) {
+                    tracing::error!(
+                        target: "workspaces",
+                        "Calling RPC method {:?} resulted in error {:?}",
+                        method,
+                        error
+                    );
+                } else {
+                    tracing::error!(
+                        target: "workspaces",
+                        "Submitting transaction with actions {:?} resulted in error {:?}",
+                        method.signed_transaction.transaction.actions,
+                        error
+                    );
+                }
+            }
+        };
+        result
+    }
+
     pub(crate) async fn query<M: methods::RpcMethod>(
         &self,
         method: &M,
     ) -> MethodCallResult<M::Response, M::Error> {
-        retry(|| async {
-            let result = JsonRpcClient::connect(&self.rpc_addr).call(method).await;
-            match &result {
-                Ok(response) => {
-                    if tracing::level_enabled!(tracing::Level::DEBUG) {
-                        tracing::debug!(target: "workspaces", "Querying method {:?} succeeded with {:?}", method, response);
-                    } else {
-                        tracing::info!(target: "workspaces", "Querying method '{}' succeeded with {:?}", method.method_name(), response);
-                    };
-                }
-                Err(error) => {
-                    if tracing::level_enabled!(tracing::Level::DEBUG) {
-                        tracing::error!(target: "workspaces", "Querying method {:?} resulted in error {:?}", method, error);
-                    } else {
-                        tracing::error!(target: "workspaces", "Querying method '{}' resulted in error {:?}", method.method_name(), error);
-                    };
-                }
-            }
-            result
-        })
-        .await
+        retry(|| async { JsonRpcClient::connect(&self.rpc_addr).call(method).await }).await
     }
 
     async fn send_tx_and_retry(
@@ -343,7 +370,7 @@ pub(crate) async fn send_tx(
     tx: SignedTransaction,
 ) -> anyhow::Result<FinalExecutionOutcomeView> {
     client
-        .query(&methods::broadcast_tx_commit::RpcBroadcastTxCommitRequest {
+        .query_broadcast_tx(&methods::broadcast_tx_commit::RpcBroadcastTxCommitRequest {
             signed_transaction: tx,
         })
         .await
