@@ -26,10 +26,10 @@ tokio-retry = "0.3"
 tracing = "0.1"
 url = { version = "2.2.2", features = ["serde"] }
 
-near-account-id = { git = "https://github.com/near/nearcore", branch = "daniyar/jsonrpc-primitives-debug" }
-near-crypto = { git = "https://github.com/near/nearcore", branch = "daniyar/jsonrpc-primitives-debug" }
-near-primitives = { git = "https://github.com/near/nearcore", branch = "daniyar/jsonrpc-primitives-debug" }
-near-jsonrpc-primitives = { git = "https://github.com/near/nearcore", branch = "daniyar/jsonrpc-primitives-debug" }
+near-account-id = { git = "https://github.com/near/nearcore", branch = "master" }
+near-crypto = { git = "https://github.com/near/nearcore", branch = "master" }
+near-primitives = { git = "https://github.com/near/nearcore", branch = "master" }
+near-jsonrpc-primitives = { git = "https://github.com/near/nearcore", branch = "master" }
 near-jsonrpc-client = { git = "https://github.com/near/near-jsonrpc-client-rs", branch = "daniyar/jsonrpc-client-debug", features = ["sandbox"] }
 near-sandbox-utils = "0.1"
 
